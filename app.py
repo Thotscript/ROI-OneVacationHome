@@ -641,4 +641,4 @@ def sheets_recv():
 if __name__ == "__main__":
     # Carrega dados existentes na inicialização
     _load_master()
-    app.run(host="0.0.0.0", port=8000, debug=False)
+    app.run(host="0.0.0.0", port=3000, debug=False)
