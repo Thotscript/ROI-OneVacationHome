@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="title_app">Real Estate Dashboard - One Vacation Home</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f5f5;color:#333;}
+.container{max-width:1200px;margin:0 auto;padding:20px;}
+
+.header{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;padding:30px;border-radius:10px;margin-bottom:30px;}
+.header-inner{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.logo-box{display:flex;flex-direction:row;align-items:center;gap:15px;}
+.header-logo{height:70px;}
+.social-block{text-align:left;font-size:13px;line-height:1.3;}
+.social-icons{margin-top:6px;}
+.social-icons a{margin:0 6px 0 0;font-size:22px;text-decoration:none;}
+.social-icons .whatsapp{color:#25D366;}
+.social-icons .instagram{color:#C13584;}
+
+.selector{margin:20px 0;display:flex;gap:15px;flex-wrap:wrap;align-items:center;}
+.selector select{width:100%;max-width:250px;padding:12px;font-size:15px;border:2px solid #ddd;border-radius:8px;background:#fff;}
+#export-pdf-btn{margin-left:auto;padding:12px 18px;border:none;border-radius:8px;background:#1e3a8a;color:#fff;cursor:pointer;font-weight:600;}
+
+/* ------- Botão de idioma (dropdown) ------- */
+#lang-btn{padding:10px 14px;border:2px solid #ddd;background:#fff;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:6px;}
+#lang-btn.active{border-color:#1e3a8a;}
+#current-flag{font-size:18px;}
+#lang-menu{position:absolute;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.15);display:none;z-index:1000;min-width:180px;}
+#lang-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:none;border:none;font-size:15px;text-align:left;cursor:pointer;}
+#lang-menu button:hover{background:#f1f5f9;}
+#lang-menu .flag{font-size:18px;}
+.lang-wrapper{position:relative;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px;}
+.kpi-card{background:#fff;padding:25px;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);text-align:center;}
+.kpi-card.revenue{border-left:5px solid #10b981;}
+.kpi-card.occupation{border-left:5px solid #3b82f6;}
+.kpi-card.adr{border-left:5px solid #f59e0b;}
+.kpi-card.revpar{border-left:5px solid #ef4444;}
+.kpi-title{font-size:14px;color:#666;margin-bottom:10px;text-transform:uppercase;font-weight:600;}
+.kpi-value{font-size:2.5em;font-weight:bold;color:#1e3a8a;}
+
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(500px,1fr));gap:30px;margin-bottom:30px;}
+.chart-card{background:#fff;padding:25px;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+.chart-title{font-size:1.2em;font-weight:600;margin-bottom:20px;color:#1e3a8a;}
+
+.table-card{background:#fff;padding:25px;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:12px;text-align:center;border-bottom:1px solid #ddd;}
+th{background:#1e3a8a;color:#fff;font-weight:600;}
+tfoot td{font-weight:bold;background:#e2e8f0;}
+tr:nth-child(even){background:#f8f9fa;}
+
+.loading{text-align:center;padding:50px;font-size:18px;color:#666;}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:30px;}
+.summary-card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+.summary-title{font-size:1.1em;font-weight:600;margin-bottom:15px;color:#1e3a8a;}
+.summary-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;}
+.summary-item:last-child{border-bottom:none;font-weight:bold;color:#1e3a8a;}
+
+@media print{
+    #export-pdf-btn,.selector select,#lang-btn,#lang-menu{display:none!important;}
+}
+</style>
+</head>
+<body>
+<div class="container" id="pdf-root">
+    <div class="header">
+        <div class="header-inner">
+            <div class="logo-box">
+                <img src="{{ url_for('static', filename='img/one-vacation-home-logo.png') }}" alt="One Vacation Home Logo" class="header-logo">
+                <div class="social-block">
+                    WhatsApp: +1 407 232 1560<br>
+                    Instagram: @onevacationhome
+                    <div class="social-icons">
+                        <a href="https://wa.me/14072321560" target="_blank" class="whatsapp"><i class="fab fa-whatsapp"></i></a>
+                        <a href="https://www.instagram.com/onevacationhome/" target="_blank" class="instagram"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align:right;flex:1;">
+                <h1 id="property-title" style="margin-bottom:5px;" data-i18n="header_title">Real Estate Dashboard</h1>
+                <p data-i18n="header_subtitle">One Vacation Home - Performance Projection</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="selector">
+        <select id="cond-selector">
+            <option value="" data-i18n="cond_placeholder">Condominium</option>
+        </select>
+
+        <select id="size-selector" disabled>
+            <option value="" data-i18n="size_placeholder">Size</option>
+        </select>
+
+        <div class="lang-wrapper">
+            <button id="lang-btn" title="Language" data-i18n-title="lang_title"><span id="current-flag">🇺🇸</span></button>
+            <div id="lang-menu">
+                <button data-lang="pt-BR"><span class="flag">🇧🇷</span> Português (Brasil)</button>
+                <button data-lang="en-US"><span class="flag">🇺🇸</span> English (US)</button>
+                <button data-lang="es-ES"><span class="flag">🇪🇸</span> Español (España)</button>
+            </div>
+        </div>
+
+        <button id="export-pdf-btn" onclick="exportPDF()" data-i18n="btn_export">Export PDF</button>
+    </div>
+
+    <div class="intro-container" style="display:flex;gap:20px;align-items:flex-start;margin:20px 0;">
+        <div id="intro-message" style="flex:2;text-align:justify;font-size:16px;line-height:1.4;"></div>
+        <div style="flex:1;max-width:200px;">
+            <img src="{{ url_for('static', filename='img/Foto_Edney.png') }}" alt="Edney Souza" style="width:100%;height:auto;border-radius:8px;">
+        </div>
+    </div>
+
+    <div id="dashboard-content" class="loading" data-i18n="msg_loading">
+        Loading...
+    </div>
+</div>
+
+<script>
+/* ------------------ DICIONÁRIOS ------------------ */
+let LANG = 'en-US';
+
+const I18N = {
+  'en-US': {
+    title_app: 'Real Estate Dashboard - One Vacation Home',
+    header_title: 'Real Estate Dashboard',
+    header_subtitle: 'One Vacation Home - Performance Projection',
+    cond_placeholder: 'Condominium',
+    size_placeholder: 'Size',
+    btn_export: 'Export PDF',
+    msg_select_both: 'Select Condominium and Size to view the data',
+    msg_loading: 'Loading...',
+    msg_error: 'Error loading data',
+    kpi_revenue: 'Revenue',
+    kpi_occupation: 'Occupation',
+    kpi_adr: 'ADR',
+    kpi_revpar: 'RevPar',
+    chart_revenue_title: 'Revenue by Month',
+    chart_revenue_label: 'Revenue',
+    chart_occ_title: 'Occupation by Month',
+    chart_occ_label: 'Occupation (%)',
+    summary_annual: 'Annual Summary',
+    annual_revenue: 'Annual Revenue:',
+    annual_expenses: 'Annual Expenses:',
+    annual_profit: 'Annual Profit:',
+    avg_monthly_profit: 'Average Monthly Profit:',
+    expense_breakdown: 'Expense Breakdown (Annual)',
+    table_perf_title: 'Performance by Month',
+    th_month: 'Month',
+    th_proj_rev: 'Projected Revenue',
+    th_occ: 'Occupation',
+    th_adr: 'ADR',
+    th_revpar: 'RevPar',
+    th_real_rev: 'Real Revenue',
+    th_profit: 'Profit',
+    total: 'Total',
+    no_condos: 'No condominiums available yet',
+    no_sizes: 'No sizes for this condominium.',
+    no_data_for_filter: 'No data for this filter.',
+    lang_title: 'Language'
+  },
+  'pt-BR': {
+    title_app: 'Dashboard Imobiliário - One Vacation Home',
+    header_title: 'Dashboard Imobiliário',
+    header_subtitle: 'One Vacation Home - Projeção de Performance',
+    cond_placeholder: 'Condomínio',
+    size_placeholder: 'Tamanho',
+    btn_export: 'Exportar PDF',
+    msg_select_both: 'Selecione Condomínio e Tamanho para visualizar os dados',
+    msg_loading: 'Carregando...',
+    msg_error: 'Erro ao carregar os dados',
+    kpi_revenue: 'Receita',
+    kpi_occupation: 'Ocupação',
+    kpi_adr: 'ADR',
+    kpi_revpar: 'RevPar',
+    chart_revenue_title: 'Receita por Mês',
+    chart_revenue_label: 'Receita',
+    chart_occ_title: 'Ocupação por Mês',
+    chart_occ_label: 'Ocupação (%)',
+    summary_annual: 'Resumo Anual',
+    annual_revenue: 'Receita Anual:',
+    annual_expenses: 'Despesas Anuais:',
+    annual_profit: 'Lucro Anual:',
+    avg_monthly_profit: 'Lucro Médio Mensal:',
+    expense_breakdown: 'Detalhamento de Despesas (Anual)',
+    table_perf_title: 'Performance por Mês',
+    th_month: 'Mês',
+    th_proj_rev: 'Receita Projetada',
+    th_occ: 'Ocupação',
+    th_adr: 'ADR',
+    th_revpar: 'RevPar',
+    th_real_rev: 'Receita Real',
+    th_profit: 'Lucro',
+    total: 'Total',
+    no_condos: 'Nenhum condomínio disponível ainda',
+    no_sizes: 'Nenhum tamanho para este condomínio.',
+    no_data_for_filter: 'Sem dados para este filtro.',
+    lang_title: 'Idioma'
+  },
+  'es-ES': {
+    title_app: 'Panel Inmobiliario - One Vacation Home',
+    header_title: 'Panel Inmobiliario',
+    header_subtitle: 'One Vacation Home - Proyección de Rendimiento',
+    cond_placeholder: 'Condominio',
+    size_placeholder: 'Tamaño',
+    btn_export: 'Exportar PDF',
+    msg_select_both: 'Seleccione Condominio y Tamaño para ver los datos',
+    msg_loading: 'Cargando...',
+    msg_error: 'Error al cargar los datos',
+    kpi_revenue: 'Ingresos',
+    kpi_occupation: 'Ocupación',
+    kpi_adr: 'ADR',
+    kpi_revpar: 'RevPar',
+    chart_revenue_title: 'Ingresos por Mes',
+    chart_revenue_label: 'Ingresos',
+    chart_occ_title: 'Ocupación por Mes',
+    chart_occ_label: 'Ocupación (%)',
+    summary_annual: 'Resumen Anual',
+    annual_revenue: 'Ingresos Anuales:',
+    annual_expenses: 'Gastos Anuales:',
+    annual_profit: 'Beneficio Anual:',
+    avg_monthly_profit: 'Beneficio Medio Mensual:',
+    expense_breakdown: 'Desglose de Gastos (Anual)',
+    table_perf_title: 'Rendimiento por Mes',
+    th_month: 'Mes',
+    th_proj_rev: 'Ingresos Proyectados',
+    th_occ: 'Ocupación',
+    th_adr: 'ADR',
+    th_revpar: 'RevPar',
+    th_real_rev: 'Ingresos Reales',
+    th_profit: 'Beneficio',
+    total: 'Total',
+    no_condos: 'No hay condominios disponibles todavía',
+    no_sizes: 'No hay tamaños para este condominio.',
+    no_data_for_filter: 'Sin datos para este filtro.',
+    lang_title: 'Idioma'
+  }
+};
+
+/* --------- Tradução de categorias de despesas --------- */
+const EXPENSE_TRANSLATIONS = {
+  'en-US': {
+    'Commission Fee (20%)': 'Commission Fee (20%)',
+    'HOA': 'HOA',
+    'Initial Set Up': 'Initial Set Up',
+    'Liability Insurance': 'Liability Insurance',
+    'Propery Management': 'Property Management',
+    'Proprery Management': 'Property Management',
+    'Property Management': 'Property Management',
+    'Utilities': 'Utilities'
+  },
+  'pt-BR': {
+    'Commission Fee (20%)': 'Taxa de Comissão (20%)',
+    'HOA': 'HOA',
+    'Initial Set Up': 'Configuração Inicial',
+    'Liability Insurance': 'Seguro de Responsabilidade',
+    'Propery Management': 'Gerenciamento de Imóvel',
+    'Proprery Management': 'Gerenciamento de Imóvel',
+    'Property Management': 'Gerenciamento de Imóvel',
+    'Utilities': 'Utilidades'
+  },
+  'es-ES': {
+    'Commission Fee (20%)': 'Comisión (20%)',
+    'HOA': 'HOA',
+    'Initial Set Up': 'Configuración Inicial',
+    'Liability Insurance': 'Seguro de Responsabilidad',
+    'Propery Management': 'Administración de Propiedad',
+    'Proprery Management': 'Administración de Propiedad',
+    'Property Management': 'Administración de Propiedad',
+    'Utilities': 'Servicios'
+  }
+};
+
+/* --------- MESES LOCALIZADOS --------- */
+const MONTHS_I18N = {
+  'en-US': { Jan:'Jan', Feb:'Feb', Mar:'Mar', Apr:'Apr', May:'May', Jun:'Jun', Jul:'Jul', Aug:'Aug', Sep:'Sep', Oct:'Oct', Nov:'Nov', Dec:'Dec' },
+  'pt-BR': { Jan:'Jan', Feb:'Fev', Mar:'Mar', Apr:'Abr', May:'Mai', Jun:'Jun', Jul:'Jul', Aug:'Ago', Sep:'Set', Oct:'Out', Nov:'Nov', Dec:'Dez' },
+  'es-ES': { Jan:'Ene', Feb:'Feb', Mar:'Mar', Apr:'Abr', May:'May', Jun:'Jun', Jul:'Jul', Aug:'Ago', Sep:'Sep', Oct:'Oct', Nov:'Nov', Dec:'Dic' }
+};
+function locMonth(abbr){ return (MONTHS_I18N[LANG] && MONTHS_I18N[LANG][abbr]) || abbr; }
+
+/* --------- FUNÇÕES DE TRADUÇÃO --------- */
+function t(key){ return (I18N[LANG] && I18N[LANG][key]) || key; }
+
+function translateStatic(){
+  document.title = t('title_app');
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    if(key && I18N[LANG][key] !== undefined){
+      el.textContent = t(key);
+    }
+  });
+  // placeholders select
+  const condSel = document.getElementById('cond-selector');
+  if(condSel && condSel.options.length) condSel.options[0].textContent = t('cond_placeholder');
+  const sizeSel = document.getElementById('size-selector');
+  if(sizeSel && sizeSel.options.length) sizeSel.options[0].textContent = t('size_placeholder');
+  // tooltips
+  document.querySelectorAll('[data-i18n-title]').forEach(el=>{
+    const key = el.getAttribute('data-i18n-title');
+    el.title = t(key);
+  });
+}
+
+function setTextByKey(selector, key){
+  const el = document.querySelector(selector);
+  if(el){
+    el.setAttribute('data-i18n', key);
+    el.textContent = t(key);
+  }
+}
+
+function translateDynamic(){
+  setTextByKey('.chart-title[data-i18n="chart_revenue_title"]','chart_revenue_title');
+  setTextByKey('.chart-title[data-i18n="chart_occ_title"]','chart_occ_title');
+  setTextByKey('.summary-title[data-i18n="summary_annual"]','summary_annual');
+  setTextByKey('.summary-title[data-i18n="expense_breakdown"]','expense_breakdown');
+  setTextByKey('.table-card .chart-title[data-i18n="table_perf_title"]','table_perf_title');
+
+  const headerKeys = ['th_month','th_proj_rev','th_occ','th_adr','th_revpar','th_real_rev','th_profit'];
+  const theadCells = document.querySelectorAll('table thead th');
+  theadCells.forEach((th,idx)=>{
+    if(headerKeys[idx]){
+      th.setAttribute('data-i18n', headerKeys[idx]);
+      th.textContent = t(headerKeys[idx]);
+    }
+  });
+  const totalCell = document.querySelector('table tfoot td:first-child');
+  if(totalCell){
+    totalCell.setAttribute('data-i18n','total');
+    totalCell.textContent = t('total');
+  }
+
+  document.querySelectorAll('[data-expense-key]').forEach(el => {
+    const key = el.getAttribute('data-expense-key');
+    const label = (EXPENSE_TRANSLATIONS[LANG] && EXPENSE_TRANSLATIONS[LANG][key]) || key;
+    el.textContent = label;
+  });
+
+  const kpiKeys = ['kpi_revenue','kpi_occupation','kpi_adr','kpi_revpar'];
+  document.querySelectorAll('.kpi-title').forEach((el,i)=>{
+    if(kpiKeys[i]){
+      el.setAttribute('data-i18n', kpiKeys[i]);
+      el.textContent = t(kpiKeys[i]);
+    }
+  });
+
+  // relocaliza labels e datasets dos gráficos
+  if(window.revChartInstance && window.currentData){
+    window.revChartInstance.data.datasets[0].label = t('chart_revenue_label');
+    window.revChartInstance.data.labels = window.currentData.data.map(i=>locMonth(i['Mês']));
+    window.revChartInstance.update();
+  }
+  if(window.occChartInstance && window.currentData){
+    window.occChartInstance.data.datasets[0].label = t('chart_occ_label');
+    window.occChartInstance.data.labels = window.currentData.data.map(i=>locMonth(i['Mês']));
+    window.occChartInstance.update();
+  }
+
+  if(window.currentTotals){ updateSummaryText(window.currentTotals); }
+  updateFooter();
+}
+
+/* -------- Mensagens de rodapé -------- */
+const FOOTERS = {
+  'pt-BR': `<p><strong>Olá Corretor,</strong><br><br>
+  Segue em anexo uma análise de rentabilidade preparada para facilitar a apresentação deste imóvel de férias em Orlando aos seus clientes investidores. O material oferece uma visão clara do potencial de receita anual, bem como um panorama completo das despesas, permitindo que você destaque a solidez e a atratividade do investimento.<br><br>
+  Caso deseje receber novas oportunidades e atualizações em primeira mão, acompanhe nossos canais:<br>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-instagram" style="color:#C13584;"></i>
+    <a href="https://www.instagram.com/onevacationhome/" target="_blank" style="color:inherit;text-decoration:none;">
+      Instagram da One Vacation Home — @onevacationhome
+    </a>
+  </span>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-instagram" style="color:#C13584;"></i>
+    <a href="https://www.instagram.com/edneysouza/" target="_blank" style="color:inherit;text-decoration:none;">
+      Perfil do CEO, Edney Souza — @edneysouza
+    </a>
+  </span><br>
+  Dúvidas ou negociações? Entre em contato:<br>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-whatsapp" style="color:#25D366;"></i>
+    <a href="https://wa.me/14072321560?text=Gostaria%20de%20saber%20mais%20sobre%20a%20rentabilidade%0Ade%20Vacation%20Home.%0A%0Aroi.onevacationhome.com" target="_blank" style="color:inherit;text-decoration:none;">
+      Edney Souza | +1 (407) 232-1560 | edney@onevacationhome.com
+    </a>
+  </span><br>
+  Conte conosco para impulsionar suas vendas e oferecer aos seus clientes as melhores opções do mercado!</p>`,
+
+  'en-US': `<p><strong>Hello Broker,</strong><br><br>
+  Attached is a profitability analysis prepared to facilitate the presentation of this vacation home in Orlando to your investor clients. The material provides a clear view of the potential annual revenue as well as a comprehensive overview of the expenses, allowing you to highlight the solidity and attractiveness of the investment.<br><br>
+  If you wish to receive new opportunities and updates first-hand, follow our channels:<br>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-instagram" style="color:#C13584;"></i>
+    <a href="https://www.instagram.com/onevacationhome/" target="_blank" style="color:inherit;text-decoration:none;">
+      One Vacation Home’s Instagram — @onevacationhome
+    </a>
+  </span>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-instagram" style="color:#C13584;"></i>
+    <a href="https://www.instagram.com/edneysouza/" target="_blank" style="color:inherit;text-decoration:none;">
+      CEO Edney Souza’s profile — @edneysouza
+    </a>
+  </span><br>
+  Questions or negotiations? Contact:<br>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-whatsapp" style="color:#25D366;"></i>
+    <a href="https://wa.me/14072321560?text=I%20would%20like%20to%20know%20more%20about%20the%20profitability%0Aof%20a%20Vacation%20Home.%0A%0Aroi.onevacationhome.com" target="_blank" style="color:inherit;text-decoration:none;">
+      Edney Souza | +1 (407) 232-1560 | edney@onevacationhome.com
+    </a>
+  </span><br>
+  Count on us to boost your sales and offer your clients the best options in the market!</p>`,
+
+  'es-ES': `<p><strong>Hola Corredor,</strong><br><br>
+  Adjunto encontrarás un análisis de rentabilidad preparado para facilitar la presentación de esta casa de vacaciones en Orlando a tus clientes inversores. El material ofrece una visión clara del potencial de ingresos anuales, así como un panorama completo de los gastos, permitiéndote destacar la solidez y el atractivo de la inversión.<br><br>
+  Si deseas recibir nuevas oportunidades y actualizaciones de primera mano, acompaña nuestros canales:<br>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-instagram" style="color:#C13584;"></i>
+    <a href="https://www.instagram.com/onevacationhome/" target="_blank" style="color:inherit;text-decoration:none;">
+      Instagram de One Vacation Home — @onevacationhome
+    </a>
+  </span>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-instagram" style="color:#C13584;"></i>
+    <a href="https://www.instagram.com/edneysouza/" target="_blank" style="color:inherit;text-decoration:none;">
+      Perfil del CEO, Edney Souza — @edneysouza
+    </a>
+  </span><br>
+  ¿Dudas o negociaciones? Ponte en contacto:<br>
+  <span style="display:block;margin-left:20px;">
+    <i class="fab fa-whatsapp" style="color:#25D366;"></i>
+    <a href="https://wa.me/14072321560?text=Me%20gustar%C3%ADa%20saber%20m%C3%A1s%20sobre%20la%20rentabilidad%0Ade%20una%20Vacation%20Home.%0A%0Aroi.onevacationhome.com" target="_blank" style="color:inherit;text-decoration:none;">
+      Edney Souza | +1 (407) 232-1560 | edney@onevacationhome.com
+    </a>
+  </span><br>
+  ¡Cuenta con nosotros para impulsar tus ventas y ofrecer a tus clientes las mejores opciones del mercado!</p>`
+};
+
+
+
+function updateFooter(){
+  const introEl = document.getElementById('intro-message');
+  if(introEl){
+    introEl.innerHTML = FOOTERS[LANG] || '';
+  }
+}
+
+function updateSummaryText(totals){
+  const descEl = document.getElementById('summary-description');
+  if(!descEl || !totals) return;
+  const rev  = formatCurrency(totals.annual_revenue);
+  const exp  = formatCurrency(totals.annual_expenses);
+  const prof = formatCurrency(totals.annual_profit);
+  const mProf = formatCurrency(totals.monthly_profit);
+  let text = '';
+  if(LANG === 'pt-BR'){
+    text = `Com base na propriedade selecionada, a receita anual é de ${rev}, as despesas anuais são de ${exp}, resultando em um lucro anual de ${prof} e um lucro médio mensal de ${mProf}.`;
+  } else if(LANG === 'es-ES'){
+    text = `Según la propiedad seleccionada, los ingresos anuales son ${rev}, los gastos anuales son ${exp}, resultando en un beneficio anual de ${prof} y un beneficio medio mensual de ${mProf}.`;
+  } else {
+    text = `Based on the selected property, the annual revenue is ${rev}, annual expenses are ${exp}, resulting in an annual profit of ${prof} and an average monthly profit of ${mProf}.`;
+  }
+  descEl.textContent = text;
+}
+
+function switchLanguage(newLang){
+  if(LANG === newLang) return;
+  LANG = newLang;
+  const flagMap = {'pt-BR':'🇧🇷','en-US':'🇺🇸','es-ES':'🇪🇸'};
+  document.getElementById('current-flag').textContent = flagMap[LANG] || '🌐';
+
+  translateStatic();
+
+  if(currentData){
+    const title = document.getElementById('property-title').textContent;
+    renderDashboard(currentData, title); // re-render para moeda/meses
+    translateDynamic();
+  } else {
+    const dc = document.getElementById('dashboard-content');
+    dc.textContent = t('msg_select_both');
+    dc.setAttribute('data-i18n','msg_select_both');
+  }
+}
+
+/* -------- Dropdown de idioma -------- */
+const langBtn  = document.getElementById('lang-btn');
+const langMenu = document.getElementById('lang-menu');
+
+langBtn.addEventListener('click', ()=>{
+  langMenu.style.display = (langMenu.style.display === 'block') ? 'none' : 'block';
+  langBtn.classList.toggle('active');
+});
+langMenu.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(btn){
+    switchLanguage(btn.getAttribute('data-lang'));
+    langMenu.style.display='none';
+    langBtn.classList.remove('active');
+  }
+});
+document.addEventListener('click', (e)=>{
+  if(!langMenu.contains(e.target) && !langBtn.contains(e.target)){
+    langMenu.style.display='none';
+    langBtn.classList.remove('active');
+  }
+});
+
+/* ----------------- LÓGICA / FETCHES ----------------- */
+let selectedCondo="", selectedSize="", currentData=null;
+const condSel = document.getElementById('cond-selector');
+const sizeSel = document.getElementById('size-selector');
+const dash = document.getElementById('dashboard-content');
+
+// Estado inicial: carregando opções
+dash.innerHTML = '<div class="loading" data-i18n="msg_loading">'+t('msg_loading')+'</div>';
+
+fetch('/api/options')
+  .then(r=>r.json())
+  .then(opts=>{
+    console.log('[front] /api/options ->', opts);
+    condSel.innerHTML='<option value="">'+t('cond_placeholder')+'</option>';
+    if (opts && Array.isArray(opts.condominios) && opts.condominios.length){
+      opts.condominios.forEach(c=>{
+        const op=document.createElement('option'); op.value=c; op.textContent=c; condSel.appendChild(op);
+      });
+      dash.innerHTML = '<div class="loading" data-i18n="msg_select_both">'+t('msg_select_both')+'</div>';
+    } else {
+      dash.innerHTML = '<div class="loading" data-i18n="no_condos">'+t('no_condos')+'</div>';
+    }
+  })
+  .catch(err=>{
+    console.error(err);
+    dash.innerHTML = '<div class="loading" data-i18n="msg_error">'+t('msg_error')+'</div>';
+  });
+
+document.getElementById('cond-selector').addEventListener('change', function(){
+  selectedCondo=this.value;
+  sizeSel.disabled=true;
+  sizeSel.innerHTML='<option value="">'+t('size_placeholder')+'</option>';
+
+  if(!selectedCondo){
+    dash.innerHTML='<div class="loading" data-i18n="msg_select_both">'+t('msg_select_both')+'</div>';
+    return;
+  }
+  dash.innerHTML='<div class="loading" data-i18n="msg_loading">'+t('msg_loading')+'</div>';
+  fetch('/api/options?condominio='+encodeURIComponent(selectedCondo))
+    .then(r=>r.json())
+    .then(opts=>{
+      console.log('[front] tamanhos de', selectedCondo, '->', opts);
+      if (opts && Array.isArray(opts.tamanhos) && opts.tamanhos.length){
+        opts.tamanhos.forEach(tam=>{
+          const op=document.createElement('option'); op.value=tam; op.textContent=tam; sizeSel.appendChild(op);
+        });
+        sizeSel.disabled=false;
+        dash.innerHTML = '<div class="loading" data-i18n="msg_select_both">'+t('msg_select_both')+'</div>';
+      } else {
+        dash.innerHTML = '<div class="loading" data-i18n="no_sizes">'+t('no_sizes')+'</div>';
+      }
+    })
+    .catch(err=>{
+      console.error(err);
+      dash.innerHTML = '<div class="loading" data-i18n="msg_error">'+t('msg_error')+'</div>';
+    });
+});
+
+document.getElementById('size-selector').addEventListener('change', function(){
+  selectedSize=this.value;
+  if(selectedCondo && selectedSize){ loadData(selectedCondo, selectedSize); }
+  else{
+    dash.innerHTML='<div class="loading" data-i18n="msg_select_both">'+t('msg_select_both')+'</div>';
+  }
+});
+
+function loadData(cond, size){
+  dash.innerHTML='<div class="loading" data-i18n="msg_loading">'+t('msg_loading')+'</div>';
+  fetch(`/api/data?condominio=${encodeURIComponent(cond)}&tamanho=${encodeURIComponent(size)}`)
+    .then(r=>r.json())
+    .then(data=>{
+      console.log('[front] /api/data ->', data);
+      currentData=data;
+      if (!data || !Array.isArray(data.data) || !data.data.length){
+        dash.innerHTML = '<div class="loading" data-i18n="no_data_for_filter">'+t('no_data_for_filter')+'</div>';
+        return;
+      }
+      renderDashboard(data, cond+' - '+size);
+      translateDynamic();
+    })
+    .catch(e=>{
+      console.error(e);
+      dash.innerHTML='<div class="loading" data-i18n="msg_error">'+t('msg_error')+'</div>';
+    });
+}
+
+function renderDashboard(data, title){
+  const { data: monthlyData, totals, expenses } = data;
+  document.getElementById('property-title').textContent = title;
+
+  const totalRow = calcTotalsForTable(monthlyData);
+
+  const content = `
+    <div class="kpi-grid">
+      <div class="kpi-card revenue">
+        <div class="kpi-title" data-i18n="kpi_revenue">Revenue</div>
+        <div class="kpi-value">${formatCurrency(totals.revenue)}</div>
+      </div>
+      <div class="kpi-card occupation">
+        <div class="kpi-title" data-i18n="kpi_occupation">Occupation</div>
+        <div class="kpi-value">${formatPercentage(totals.occupation)}</div>
+      </div>
+      <div class="kpi-card adr">
+        <div class="kpi-title" data-i18n="kpi_adr">ADR</div>
+        <div class="kpi-value">${formatCurrency(totals.adr)}</div>
+      </div>
+      <div class="kpi-card revpar">
+        <div class="kpi-title" data-i18n="kpi_revpar">RevPar</div>
+        <div class="kpi-value">${formatCurrency(totals.revpar)}</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title" data-i18n="chart_revenue_title">Revenue by Month</div>
+        <canvas id="revenueChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title" data-i18n="chart_occ_title">Occupation by Month</div>
+        <canvas id="occupationChart"></canvas>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-title" data-i18n="summary_annual">Annual Summary</div>
+        <div class="summary-item"><span data-i18n="annual_revenue">Annual Revenue:</span><span>${formatCurrency(totals.annual_revenue)}</span></div>
+        <div class="summary-item"><span data-i18n="annual_expenses">Annual Expenses:</span><span>${formatCurrency(totals.annual_expenses)}</span></div>
+        <div class="summary-item"><span data-i18n="annual_profit">Annual Profit:</span><span>${formatCurrency(totals.annual_profit)}</span></div>
+        <div class="summary-item"><span data-i18n="avg_monthly_profit">Average Monthly Profit:</span><span>${formatCurrency(totals.monthly_profit)}</span></div>
+      </div>
+      <div class="summary-card" style="order:-1;">
+        <div class="summary-title" data-i18n="expense_breakdown">Expense Breakdown (Annual)</div>
+        ${(() => {
+          const entries = Object.entries(expenses || {});
+          let totalExp = 0;
+          entries.forEach(([_, v]) => { totalExp += v; });
+          let rows = '';
+          entries.forEach(([k, v]) => {
+            const label = (EXPENSE_TRANSLATIONS[LANG] && EXPENSE_TRANSLATIONS[LANG][k]) || k;
+            rows += `<div class="summary-item"><span data-expense-key="${k}">${label}</span><span>${formatCurrency(v)}</span></div>`;
+          });
+          rows += `<div class="summary-item"><span data-i18n="total">${t('total')}</span><span>${formatCurrency(totalExp)}</span></div>`;
+          return rows;
+        })()}
+      </div>
+    </div>
+
+    <div id="summary-description" style="font-size:16px;line-height:1.4;margin-bottom:20px;text-align:justify;"></div>
+
+    <div class="table-card">
+      <div class="chart-title" data-i18n="table_perf_title">Performance by Month</div>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="th_month">Month</th>
+            <th data-i18n="th_proj_rev">Projected Revenue</th>
+            <th data-i18n="th_occ">Occupation</th>
+            <th data-i18n="th_adr">ADR</th>
+            <th data-i18n="th_revpar">RevPar</th>
+            <th data-i18n="th_real_rev">Real Revenue</th>
+            <th data-i18n="th_profit">Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${monthlyData.map(item=>`
+            <tr>
+              <td>${locMonth(item['Mês'])}</td>
+              <td>${formatCurrency(item['Receita Projetada'])}</td>
+              <td>${formatPercentage(item['Ocupação'])}</td>
+              <td>${formatCurrency(item['ADR'])}</td>
+              <td>${formatCurrency(item['RevPar'])}</td>
+              <td>${formatCurrency(item['Receita Mensal Real'])}</td>
+              <td>${formatCurrency(item['Lucro Mensal'])}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td data-i18n="total">Total</td>
+            <td>${formatCurrency(totalRow.revProj)}</td>
+            <td>${formatPercentage(totalRow.occ)}</td>
+            <td>${formatCurrency(totalRow.adr)}</td>
+            <td>${formatCurrency(totalRow.revpar)}</td>
+            <td>${formatCurrency(totalRow.revReal)}</td>
+            <td>${formatCurrency(totalRow.profit)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `;
+  dash.innerHTML = content;
+
+  window.currentTotals = totals;
+  window.currentData = data;
+  updateSummaryText(totals);
+  renderCharts(monthlyData);
+  updateFooter();
+}
+
+let revChartInstance=null, occChartInstance=null;
+function renderCharts(monthlyData){
+  const labels = monthlyData.map(i=>locMonth(i['Mês']));
+
+  const revCtx=document.getElementById('revenueChart').getContext('2d');
+  if(revChartInstance){ revChartInstance.destroy(); }
+  revChartInstance = new Chart(revCtx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:t('chart_revenue_label'),
+        data:monthlyData.map(i=>i['Receita Mensal Real']),
+        backgroundColor:'#10b981',borderColor:'#059669',borderWidth:1
+      }]
+    },
+    options:{responsive:true,
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>formatCurrency(v)}}}}
+  });
+  window.revChartInstance = revChartInstance;
+
+  const occCtx=document.getElementById('occupationChart').getContext('2d');
+  if(occChartInstance){ occChartInstance.destroy(); }
+  occChartInstance = new Chart(occCtx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:t('chart_occ_label'),
+        data:monthlyData.map(i=>i['Ocupação']*100),
+        backgroundColor:'#3b82f6',borderColor:'#2563eb',borderWidth:1
+      }]
+    },
+    options:{responsive:true,
+      scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=> new Intl.NumberFormat(LANG,{maximumFractionDigits:0}).format(v)+'%'}}}}
+  });
+  window.occChartInstance = occChartInstance;
+}
+
+function calcTotalsForTable(rows){
+  const sum=(arr,k)=>arr.reduce((a,b)=>a+(b[k]||0),0);
+  const revProj=sum(rows,'Receita Projetada');
+  const revReal=sum(rows,'Receita Mensal Real');
+  const profit =sum(rows,'Lucro Mensal');
+  const totalDays=sum(rows,'Dias');
+  const totalDaysOcc=rows.reduce((a,b)=>a+(b['Dias']*b['Ocupação']),0);
+  const occ = totalDays ? totalDaysOcc/totalDays : 0;
+  const adr = totalDaysOcc ? revProj/totalDaysOcc : 0;
+  const revpar = totalDays ? revProj/totalDays : 0;
+  return {revProj,revReal,profit,occ,adr,revpar};
+}
+
+/* -------- EXPORT PDF -------- */
+async function exportPDF(){
+  const { jsPDF } = window.jspdf;
+  const root  = document.getElementById('pdf-root');
+  const table = document.querySelector('.table-card');
+
+  const selectorElem = document.querySelector('.selector');
+  const exportBtn    = document.getElementById('export-pdf-btn');
+  const prevSelectorDisplay = selectorElem ? selectorElem.style.display : null;
+  const prevExportDisplay   = exportBtn    ? exportBtn.style.display    : null;
+  if(selectorElem){ selectorElem.style.display = 'none'; }
+  if(exportBtn){    exportBtn.style.display    = 'none'; }
+
+  window.scrollTo(0,0);
+
+  const originalDisplay = table.style.display;
+  table.style.display = 'none';
+  const canvasPage1 = await html2canvas(root, {scale:2, useCORS:true, backgroundColor:'#f5f5f5'});
+  table.style.display = originalDisplay || '';
+
+  if(selectorElem){ selectorElem.style.display = prevSelectorDisplay || ''; }
+  if(exportBtn){    exportBtn.style.display    = prevExportDisplay   || ''; }
+
+  const tempWrapper = document.createElement('div');
+  tempWrapper.style.background = '#f5f5f5';
+  tempWrapper.style.padding = '20px';
+  tempWrapper.style.width = root.offsetWidth + 'px';
+  const tableClone = table.cloneNode(true);
+  tempWrapper.appendChild(tableClone);
+  document.body.appendChild(tempWrapper);
+
+  const canvasPage2 = await html2canvas(tempWrapper, {scale:2, useCORS:true});
+  document.body.removeChild(tempWrapper);
+
+  const pdf = new jsPDF('p','pt','a4');
+  const pageW = pdf.internal.pageSize.getWidth();
+
+  function addPage(cv, add){
+    if(add) pdf.addPage();
+    const imgW = pageW;
+    const imgH = cv.height * imgW / cv.width;
+    pdf.addImage(cv.toDataURL('image/png',1.0),'PNG',0,0,imgW,imgH);
+  }
+
+  addPage(canvasPage1,false);
+  addPage(canvasPage2,true);
+
+  const nameByLang = { 'en-US':'dashboard', 'pt-BR':'dashboard-imobiliario', 'es-ES':'panel-inmobiliario' };
+  pdf.save((nameByLang[LANG]||'dashboard') + '.pdf');
+}
+
+/* Helpers */
+//const CURRENCY_BY_LANG = { 'en-US':'USD', 'pt-BR':'BRL', 'es-ES':'USD' };
+function formatCurrency(v){
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0
+  }).format(Math.round(v || 0));
+}
+function formatPercentage(v){
+  const num = (Number(v)||0)*100;
+  return new Intl.NumberFormat(LANG, { maximumFractionDigits:0 }).format(num) + '%';
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  translateStatic();
+  updateFooter();
+});
+</script>
+</body>
+</html>
