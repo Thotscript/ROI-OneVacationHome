@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import os, re, logging
 from typing import Dict, Any
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import pandas as pd
 from unidecode import unidecode  # pip install unidecode
 
@@ -421,7 +421,7 @@ def _load_master():
 # -------------------- ROTAS -------------------------
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return send_from_directory("/var/www/html/roi", "index.html")
 
 @app.get("/api/options")
 def api_options():
